@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <title>Attendance Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Space+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --paper: #EEF0EA;
+            --card: #F8F9F4;
+            --ink: #1B2432;
+            --ink-soft: #626C5C;
+            --line: #C9CDBB;
+            --present: #2F7D6B;
+            --absent: #A6462E;
+            --track: #E2E5D8;
+            --gold: #B98A2E;
+            --danger-text: #8C3A26;
+            --focus: #2F7D6B;
+            --holiday-bg: #F3E7D3;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --paper: #14181A;
+                --card: #1D2320;
+                --ink: #ECEEE6;
+                --ink-soft: #9BA394;
+                --line: #3A4238;
+                --present: #5CBBA0;
+                --absent: #E08361;
+                --track: #2A312B;
+                --gold: #E0B75E;
+                --danger-text: #E7AE8F;
+                --focus: #5CBBA0;
+                --holiday-bg: #2B2418;
+            }
+        }
+
+        :root[data-theme="dark"] {
+            --paper: #14181A;
+            --card: #1D2320;
+            --ink: #ECEEE6;
+            --ink-soft: #9BA394;
+            --line: #3A4238;
+            --present: #5CBBA0;
+            --absent: #E08361;
+            --track: #2A312B;
+            --gold: #E0B75E;
+            --danger-text: #E7AE8F;
+            --focus: #5CBBA0;
+            --holiday-bg: #2B2418;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--paper);
+            color: var(--ink);
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 16px;
+            font-family: 'Space Mono', 'Courier New', monospace;
+        }
+
+        #bg {
+         
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .sheet {
+            width: min(94vw, 440px);
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 28px 26px 24px;
+        }
+
+        .sheet.wide {
+            width: min(94vw, 620px);
+        }
+
+        .sheet-head h1 {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 600;
+            font-size: 28px;
+            margin: 0 0 6px;
+            letter-spacing: -0.01em;
+        }
+
+        .sheet-head h2 {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 600;
+            font-size: 22px;
+            margin: 0 0 6px;
+            letter-spacing: -0.01em;
+        }
+
+        .sheet-head .sub {
+            margin: 0 0 22px;
+            font-size: 12.5px;
+            line-height: 1.5;
+            color: var(--ink-soft);
+            max-width: 42ch;
+        }
+
+        .tally {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+
+        .field {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            border-bottom: 1px solid var(--line);
+            padding-bottom: 8px;
+        }
+
+        .field label {
+            font-size: 12.5px;
+            color: var(--ink-soft);
+            white-space: nowrap;
+        }
+
+        .field input {
+            flex: 1;
+            min-width: 0;
+            width: 100%;
+            text-align: right;
+            border: none;
+            background: transparent;
+            font-family: 'Space Mono', 'Courier New', monospace;
+            font-weight: 700;
+            font-size: 17px;
+            color: var(--ink);
+            padding: 2px 0;
+        }
+
+        .field-target .suffix {
+            font-size: 14px;
+            color: var(--ink-soft);
+        }
+
+        input:focus-visible {
+            outline: 2px solid var(--focus);
+            outline-offset: 2px;
+            border-radius: 3px;
+        }
+
+        .warning {
+            font-size: 12px;
+            color: var(--danger-text);
+            line-height: 1.5;
+            margin: -4px 0 16px;
+        }
+
+        .divider {
+            border: none;
+            border-top: 1px solid var(--line);
+            margin: 4px 0 20px;
+        }
+
+        .chart-wrap {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 22px;
+            margin-bottom: 18px;
+        }
+
+        .donut {
+            width: 168px;
+            height: 168px;
+            flex-shrink: 0;
+        }
+
+        .donut circle {
+            transition: stroke-dasharray 0.5s ease, stroke-dashoffset 0.5s ease;
+        }
+
+        .donut .track {
+            stroke: var(--track);
+        }
+
+        .pct-num {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 600;
+            font-size: 34px;
+            fill: var(--ink);
+            transition: fill 0.3s ease;
+        }
+
+        .pct-label {
+            font-family: 'Space Mono', 'Courier New', monospace;
+            font-size: 10px;
+            fill: var(--ink-soft);
+        }
+
+        .legend {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            font-size: 13px;
+        }
+
+        .legend li {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .legend b {
+            margin-left: auto;
+            padding-left: 14px;
+            font-weight: 700;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .dot-present {
+            background: var(--present);
+        }
+
+        .dot-absent {
+            background: var(--absent);
+        }
+
+        .dot-unmarked {
+            background: var(--line);
+        }
+
+        .dot-holiday {
+            background: var(--gold);
+        }
+
+        .insight {
+            font-size: 13px;
+            line-height: 1.55;
+            color: var(--ink);
+            border-left: 2px solid var(--gold);
+            padding: 2px 0 2px 12px;
+            margin: 0 0 20px;
+            min-height: 1.55em;
+        }
+
+        .reset-btn {
+            width: 100%;
+            padding: 11px;
+            background: transparent;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            color: var(--ink-soft);
+            font-family: 'Space Mono', 'Courier New', monospace;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .reset-btn:hover {
+            border-color: var(--ink-soft);
+            color: var(--ink);
+        }
+
+        .reset-btn:focus-visible {
+            outline: 2px solid var(--focus);
+            outline-offset: 2px;
+        }
+
+        /* Holiday countdown box */
+        .holiday-box {
+            background: var(--holiday-bg);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 16px 18px;
+            margin-bottom: 4px;
+        }
+
+        .holiday-box .hb-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .holiday-box .hb-head span {
+            font-size: 11.5px;
+            color: var(--ink-soft);
+        }
+
+        .holiday-box .hb-count {
+            font-family: 'Fraunces', Georgia, serif;
+            font-weight: 600;
+            font-size: 22px;
+            color: var(--ink);
+        }
+
+        .holiday-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .holiday-list li {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 12.5px;
+            line-height: 1.4;
+        }
+
+        .holiday-list .hname {
+            color: var(--ink);
+        }
+
+        .holiday-list .hdate {
+            color: var(--ink-soft);
+            white-space: nowrap;
+            text-align: right;
+        }
+
+        .holiday-empty {
+            font-size: 12.5px;
+            color: var(--ink-soft);
+        }
+
+        .hb-note {
+            font-size: 11px;
+            color: var(--ink-soft);
+            margin: 10px 0 0;
+            line-height: 1.5;
+        }
+
+        /* Target achievability box */
+        .target-box {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 16px 18px;
+            margin-bottom: 16px;
+        }
+
+        .tb-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+            font-size: 11.5px;
+            color: var(--ink-soft);
+        }
+
+        .tb-year {
+            display: flex;
+            gap: 10px;
+            font-size: 11px;
+        }
+
+        .tb-year label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+        }
+
+        .tb-year input {
+            accent-color: var(--present);
+        }
+
+        .tb-days {
+            font-size: 12.5px;
+            color: var(--ink);
+            margin: 0 0 10px;
+        }
+
+        .tb-days b {
+            font-family: 'Fraunces', Georgia, serif;
+            font-size: 16px;
+        }
+
+        .tb-verdict {
+            font-size: 13px;
+            line-height: 1.5;
+            margin: 0;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-weight: 700;
+        }
+
+        .tb-verdict.ok {
+            background: rgba(47, 125, 107, 0.14);
+            color: var(--present);
+        }
+
+        .tb-verdict.no {
+            background: rgba(166, 70, 46, 0.14);
+            color: var(--absent);
+        }
+
+        .tb-verdict.neutral {
+            background: transparent;
+            color: var(--ink-soft);
+            font-weight: 400;
+            padding: 0;
+        }
+
+        /* Academic calendar table section */
+        .cal-search {
+            width: 100%;
+            padding: 10px 12px;
+            margin-bottom: 14px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: transparent;
+            color: var(--ink);
+            font-family: 'Space Mono', 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .cal-search::placeholder {
+            color: var(--ink-soft);
+        }
+
+        .cal-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--ink-soft);
+            margin-bottom: 14px;
+        }
+
+        .cal-toggle input {
+            accent-color: var(--present);
+        }
+
+        .cal-scroll {
+            overflow-x: auto;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+        }
+
+        table.cal-table {
+            border-collapse: collapse;
+            width: 100%;
+            min-width: 560px;
+            font-size: 12px;
+        }
+
+        table.cal-table th,
+        table.cal-table td {
+            padding: 9px 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--line);
+            vertical-align: top;
+            line-height: 1.4;
+        }
+
+        table.cal-table th {
+            color: var(--ink-soft);
+            font-weight: 700;
+            font-size: 10.5px;
+            white-space: nowrap;
+            background: var(--paper);
+            position: sticky;
+            top: 0;
+        }
+
+        table.cal-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        table.cal-table td.desc {
+            min-width: 170px;
+        }
+
+        table.cal-table td.sno {
+            color: var(--ink-soft);
+            width: 30px;
+        }
+
+        .badge-holiday {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 1px 6px;
+            border-radius: 20px;
+            font-size: 9.5px;
+            background: var(--holiday-bg);
+            color: var(--gold);
+            border: 1px solid var(--line);
+            white-space: nowrap;
+        }
+
+        .cal-empty {
+            padding: 16px;
+            text-align: center;
+            font-size: 12.5px;
+            color: var(--ink-soft);
+        }
+
+        .cal-source {
+            font-size: 10.5px;
+            color: var(--ink-soft);
+            margin: 12px 0 0;
+            line-height: 1.5;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+
+            .donut circle,
+            .pct-num {
+                transition: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="bg">
+        <main class="sheet">
+            <div class="sheet-head">
+                <h1>Attendance Tracker</h1>
+                <p class="sub">Enter present, absent and total, and watch your percentage and chart update live.</p>
+            </div>
+
+            <div class="tally">
+                <div class="field">
+                    <label for="present">Present</label>
+                    <input type="number" id="present" min="0" inputmode="numeric" value="0">
+                </div>
+                <div class="field">
+                    <label for="absent">Absent</label>
+                    <input type="number" id="absent" min="0" inputmode="numeric" value="0">
+                </div>
+                <div class="field">
+                    <label for="total">Total classes</label>
+                    <input type="number" id="total" min="0" inputmode="numeric" value="0">
+                </div>
+                <div class="field field-target">
+                    <label for="target">Target</label>
+                    <input type="number" id="target" min="0" max="100" inputmode="numeric" value="75">
+                    <span class="suffix">%</span>
+                </div>
+            </div>
+
+            <p class="warning" id="warning" hidden></p>
+
+            <hr class="divider">
+
+            <div class="chart-wrap">
+                <svg class="donut" viewBox="0 0 200 200" role="img" aria-labelledby="donutTitle">
+                    <title id="donutTitle">Attendance breakdown</title>
+                    <circle class="track" cx="100" cy="100" r="80" stroke-width="26" fill="none"></circle>
+                    <g transform="rotate(-90 100 100)">
+                        <circle id="slicePresent" cx="100" cy="100" r="80" stroke-width="26" fill="none"></circle>
+                        <circle id="sliceAbsent" cx="100" cy="100" r="80" stroke-width="26" fill="none"></circle>
+                        <circle id="sliceUnmarked" cx="100" cy="100" r="80" stroke-width="26" fill="none"></circle>
+                    </g>
+                    <text x="100" y="96" text-anchor="middle" class="pct-num" id="pctNum">—</text>
+                    <text x="100" y="119" text-anchor="middle" class="pct-label" id="pctLabel">Add your numbers</text>
+                </svg>
+
+                <ul class="legend">
+                    <li><span class="dot dot-present"></span>Present<b id="legPresent">0</b></li>
+                    <li><span class="dot dot-absent"></span>Absent<b id="legAbsent">0</b></li>
+                    <li id="legUnmarkedItem" hidden><span class="dot dot-unmarked"></span>Unmarked<b
+                            id="legUnmarked">0</b>
+                    </li>
+                </ul>
+            </div>
+
+            <p class="insight" id="insight"></p>
+
+            <div class="holiday-box">
+                <div class="hb-head">
+                    <span id="holidayHeadLabel">Holidays from this month</span>
+                    <span class="hb-count"><b id="holidayDays">0</b> day(s)</span>
+                </div>
+                <ul class="holiday-list" id="holidayList"></ul>
+                <p class="hb-note" id="holidayNote"></p>
+            </div>
+
+            <button class="reset-btn" id="reset" type="button">Reset numbers</button>
+        </main>
+
+        <section class="sheet wide">
+            <div class="sheet-head">
+                <h2>Academic Calendar — ODD Semester 2026–27</h2>
+                <p class="sub">Search any event, exam or holiday from your calendar (Ref No. KIT/ACAD/2026-27/11,
+                    dated 22 Aug 2026).</p>
+            </div>
+
+            <input type="text" class="cal-search" id="calSearch" placeholder="Search e.g. Diwali, sessional, exam…">
+
+            <label class="cal-toggle">
+                <input type="checkbox" id="holidayOnly">
+                Show holidays only
+            </label>
+
+            <div class="cal-scroll">
+                <table class="cal-table" id="calTable">
+                    <thead>
+                        <tr>
+                            <th>S.No</th>
+                            <th>Description</th>
+                            <th>I Year</th>
+                            <th>II, III &amp; IV Year</th>
+                        </tr>
+                    </thead>
+                    <tbody id="calBody"></tbody>
+                </table>
+                <p class="cal-empty" id="calEmpty" hidden>No matching entries.</p>
+            </div>
+
+            <p class="cal-source">Note: this calendar may change as per the updated AKTU academic calendar; check with
+                your institute for the latest version.</p>
+        </section>
+    </div>
+
+    <script>
+        (function () {
+            // ---------- Attendance tracker (unchanged core logic) ----------
+            const presentEl = document.getElementById('present');
+            const absentEl = document.getElementById('absent');
+            const totalEl = document.getElementById('total');
+            const targetEl = document.getElementById('target');
+            const warningEl = document.getElementById('warning');
+            const insightEl = document.getElementById('insight');
+            const pctNumEl = document.getElementById('pctNum');
+            const pctLabelEl = document.getElementById('pctLabel');
+            const legPresent = document.getElementById('legPresent');
+            const legAbsent = document.getElementById('legAbsent');
+            const legUnmarked = document.getElementById('legUnmarked');
+            const legUnmarkedItem = document.getElementById('legUnmarkedItem');
+            const sliceP = document.getElementById('slicePresent');
+            const sliceA = document.getElementById('sliceAbsent');
+            const sliceU = document.getElementById('sliceUnmarked');
+            const resetBtn = document.getElementById('reset');
+
+            const R = 80;
+            const CIRC = 2 * Math.PI * R;
+            const STORAGE_KEY = 'attendance-tracker-state';
+
+            function loadState() {
+                try {
+                    const raw = localStorage.getItem(STORAGE_KEY);
+                    if (!raw) return;
+                    const s = JSON.parse(raw);
+                    if (Number.isFinite(s.present)) presentEl.value = s.present;
+                    if (Number.isFinite(s.absent)) absentEl.value = s.absent;
+                    if (Number.isFinite(s.total)) totalEl.value = s.total;
+                    if (Number.isFinite(s.target)) targetEl.value = s.target;
+                } catch (e) {
+                    /* no saved state yet, or storage unavailable — start fresh */
+                }
+            }
+
+            function saveState(P, A, Tt, target) {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify({ present: P, absent: A, total: Tt, target: target }));
+                } catch (e) {
+                    /* storage unavailable — continue without saving */
+                }
+            }
+
+            function setSlice(circle, fraction, colorVar, offsetFraction) {
+                const len = Math.max(0, Math.min(1, fraction)) * CIRC;
+                circle.style.stroke = `var(${colorVar})`;
+                circle.style.strokeDasharray = `${len} ${Math.max(0, CIRC - len)}`;
+                circle.style.strokeDashoffset = `${-offsetFraction * CIRC}`;
+            }
+
+            function formatPct(pct) {
+                const rounded = Math.round(pct * 10) / 10;
+                return Number.isInteger(rounded) ? `${rounded}%` : `${rounded.toFixed(1)}%`;
+            }
+
+            function update() {
+                const P = Math.max(0, Math.round(Number(presentEl.value)) || 0);
+                const A = Math.max(0, Math.round(Number(absentEl.value)) || 0);
+                const Tt = Math.max(0, Math.round(Number(totalEl.value)) || 0);
+                const target = Math.min(100, Math.max(0, Number(targetEl.value) || 0));
+
+                if (Tt > 0 && P + A > Tt) {
+                    warningEl.hidden = false;
+                    warningEl.textContent = `Present + Absent (${P + A}) adds up to more than Total (${Tt}), so the chart uses ${P + A} as the total.`;
+                } else if (Tt > 0 && P > Tt) {
+                    warningEl.hidden = false;
+                    warningEl.textContent = `Present (${P}) is more than Total (${Tt}). Double-check your numbers.`;
+                } else {
+                    warningEl.hidden = true;
+                    warningEl.textContent = '';
+                }
+
+                const effP = Tt > 0 ? Math.min(P, Tt) : P;
+                const pct = Tt > 0 ? (effP / Tt) * 100 : 0;
+                const denom = Math.max(Tt, P + A);
+
+                if (Tt > 0) {
+                    pctNumEl.textContent = formatPct(pct);
+                    pctLabelEl.textContent = pct >= target ? 'On track' : 'Below target';
+                    pctNumEl.style.fill = pct >= target ? 'var(--present)' : 'var(--absent)';
+                } else {
+                    pctNumEl.textContent = '—';
+                    pctLabelEl.textContent = 'Add your numbers';
+                    pctNumEl.style.fill = 'var(--ink)';
+                }
+
+                if (denom === 0) {
+                    setSlice(sliceP, 0, '--present', 0);
+                    setSlice(sliceA, 0, '--absent', 0);
+                    setSlice(sliceU, 0, '--line', 0);
+                    legUnmarkedItem.hidden = true;
+                } else {
+                    const pFrac = P / denom;
+                    const aFrac = A / denom;
+                    const unmarked = Math.max(0, Tt - P - A);
+                    const uFrac = unmarked / denom;
+                    setSlice(sliceP, pFrac, '--present', 0);
+                    setSlice(sliceA, aFrac, '--absent', pFrac);
+                    setSlice(sliceU, uFrac, '--line', pFrac + aFrac);
+                    legUnmarkedItem.hidden = unmarked <= 0;
+                    legUnmarked.textContent = unmarked;
+                }
+
+                legPresent.textContent = P;
+                legAbsent.textContent = A;
+
+                if (Tt <= 0) {
+                    insightEl.textContent = 'Enter your numbers to see where you stand.';
+                } else if (target <= 0) {
+                    insightEl.textContent = '';
+                } else if (target >= 100) {
+                    insightEl.textContent = pct >= 100
+                        ? 'Perfect record so far.'
+                        : 'A 100% target leaves no room to miss a class.';
+                } else {
+                    const T = target / 100;
+                    if (pct >= target) {
+                        const maxMiss = Math.floor(effP / T - Tt);
+                        insightEl.textContent = maxMiss > 0
+                            ? `You can miss ${maxMiss} more class${maxMiss === 1 ? '' : 'es'} and stay at or above ${target}%.`
+                            : `Right at the line: one more absence drops you below ${target}%.`;
+                    } else {
+                        const needed = Math.ceil((T * Tt - effP) / (1 - T));
+                        insightEl.textContent = `Attend ${needed} class${needed === 1 ? '' : 'es'} in a row to reach ${target}%.`;
+                    }
+                }
+
+                saveState(P, A, Tt, target);
+            }
+
+            [presentEl, absentEl, totalEl, targetEl].forEach((el) => {
+                el.addEventListener('input', update);
+            });
+
+            resetBtn.addEventListener('click', () => {
+                presentEl.value = 0;
+                absentEl.value = 0;
+                totalEl.value = 0;
+                update();
+                presentEl.focus();
+            });
+
+            // ---------- Academic calendar data (from Ref No. KIT/ACAD/2026-27/11) ----------
+            const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+            function d(s) { return new Date(s + 'T00:00:00'); }
+
+            // Full calendar as printed. isHoliday marks rows that are holidays/celebrations
+            // (used for the "holidays only" filter and search). Multi-year date ranges are
+            // kept as printed text for display; holidayRange (if present) is the parsed
+            // start/end used for the "holidays from this month" countdown.
+            const calendar = [
+                { sno: 1, desc: 'Online Registration', i: 'Upto 14th Sept 2026', other: '\u2014', isHoliday: false },
+                { sno: 2, desc: 'Orientation and Induction Program', i: '17 August Onwards', other: '\u2014', isHoliday: false },
+                { sno: 3, desc: 'Independence Day (Celebration)', i: '15 August 2026', other: '15 August 2026', isHoliday: true, holidayRange: { start: '2026-08-15', end: '2026-08-15' } },
+                { sno: 4, desc: 'Commencement of Classes Odd Semester', i: '17 August 2026', other: '27 July 2026', isHoliday: false },
+                { sno: 5, desc: 'Raksha-Bandhan (Holiday)', i: '28 August 2026', other: '28 August 2026', isHoliday: true, holidayRange: { start: '2026-08-28', end: '2026-08-28' } },
+                { sno: 6, desc: 'Janmashtami (Holiday)', i: '04 Sep 2026', other: '04 Sep 2026', isHoliday: true, holidayRange: { start: '2026-09-04', end: '2026-09-04' } },
+                { sno: 7, desc: 'Assignment-I', i: 'Before Sessional-I', other: 'Before Sessional-I', isHoliday: false },
+                { sno: 8, desc: 'Sessional-I', i: '28 Sept 2026 to 03 Oct 2026', other: '07 Sept 2026 to 12 Sep 2026', isHoliday: false },
+                { sno: 9, desc: 'Gandhi Jayanti (Holiday)', i: '02 Oct 2026', other: '02 Oct 2026', isHoliday: true, holidayRange: { start: '2026-10-02', end: '2026-10-02' } },
+                { sno: 10, desc: 'Assignment-II', i: 'Before Sessional-II', other: 'Before Sessional-II', isHoliday: false },
+                { sno: 11, desc: 'Sessional-II', i: '2 Nov 2026 to 7 Nov 2026', other: '12 Oct 2026 to 17 Oct 2026', isHoliday: false },
+                { sno: 12, desc: 'Dussehra (Holiday)', i: '20 Oct 2026', other: '20 Oct 2026', isHoliday: true, holidayRange: { start: '2026-10-20', end: '2026-10-20' } },
+                { sno: 13, desc: 'Assignment-III', i: 'Before Sessional-III', other: 'Before Sessional-III', isHoliday: false },
+                { sno: 14, desc: 'Sessional-III', i: '07 Dec 2026 to 12 Dec 2026', other: '02 Nov 2026 to 07 Nov 2026', isHoliday: false },
+                { sno: 15, desc: 'Deepawali (Holiday)', i: '08 Nov 2026 to 11 Nov 2026', other: '08 Nov 2026 to 11 Nov 2026', isHoliday: true, holidayRange: { start: '2026-11-08', end: '2026-11-11' } },
+                { sno: 16, desc: 'Guru Nanak Jayanti (Holiday)', i: '24 Nov 2026', other: '24 Nov 2026', isHoliday: true, holidayRange: { start: '2026-11-24', end: '2026-11-24' } },
+                { sno: 17, desc: 'End Semester Theory Examination', i: '21 Dec 2026\u201302 Jan 2027', other: '25 Nov 2026', isHoliday: false },
+                { sno: 18, desc: 'End Semester Practical Examination', i: '12 Dec 2026\u201319 Dec 2026', other: '07 Dec 2026 to 24 Dec 2026', isHoliday: false },
+                { sno: 19, desc: 'Christmas Day (Holiday)', i: '25 Dec 2026', other: '25 Dec 2026', isHoliday: true, holidayRange: { start: '2026-12-25', end: '2026-12-25' } },
+                { sno: 20, desc: 'Winter Vacations (Holiday)', i: 'Upto 11 Jan 2027', other: 'Upto 11 Jan 2027', isHoliday: true, holidayRange: { start: '2026-12-20', end: '2027-01-11' }, approxStart: true },
+                { sno: 21, desc: 'Fees Deposition for Even Semester', i: '15 Dec 2026 to 31 Dec 2026', other: '15 Dec 2026 to 31 Dec 2026', isHoliday: false },
+                { sno: 22, desc: 'Commencement of Classes Even Semester', i: '11 Jan 2027', other: '11 Jan 2027', isHoliday: false },
+                { sno: 23, desc: 'Result Declaration (Tentative)', i: '23 Jan 2027', other: 'by the University', isHoliday: false }
+            ];
+
+            // ---------- Holidays from this month onward ----------
+            const holidayListEl = document.getElementById('holidayList');
+            const holidayDaysEl = document.getElementById('holidayDays');
+            const holidayHeadLabelEl = document.getElementById('holidayHeadLabel');
+            const holidayNoteEl = document.getElementById('holidayNote');
+
+            function renderHolidayCountdown() {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+
+                const upcoming = calendar.filter(c => c.isHoliday && d(c.holidayRange.end) >= monthStart);
+
+                holidayHeadLabelEl.textContent = `Holidays from ${MONTH_NAMES[today.getMonth()]} ${today.getFullYear()}`;
+                holidayListEl.innerHTML = '';
+
+                let totalDays = 0;
+                let hasApprox = false;
+
+                if (upcoming.length === 0) {
+                    const empty = document.createElement('li');
+                    empty.className = 'holiday-empty';
+                    empty.textContent = 'No holidays left on the calendar from this month onward.';
+                    holidayListEl.appendChild(empty);
+                } else {
+                    upcoming.forEach(c => {
+                        const start = d(c.holidayRange.start);
+                        const end = d(c.holidayRange.end);
+                        const spanDays = Math.round((end - start) / 86400000) + 1;
+                        totalDays += spanDays;
+                        if (c.approxStart) hasApprox = true;
+
+                        const li = document.createElement('li');
+                        const name = document.createElement('span');
+                        name.className = 'hname';
+                        name.textContent = c.desc.replace(/\s*\(Holiday\)|\s*\(Celebration\)/, '') + (spanDays > 1 ? ` (${spanDays} days)` : '');
+                        const date = document.createElement('span');
+                        date.className = 'hdate';
+                        date.textContent = c.i === c.other ? c.i : `${c.i}`;
+                        li.appendChild(name);
+                        li.appendChild(date);
+                        holidayListEl.appendChild(li);
+                    });
+                }
+
+                holidayDaysEl.textContent = totalDays;
+                holidayNoteEl.textContent = hasApprox
+                    ? 'Day counts are as printed on the calendar; the Winter Vacation start date is not specified on the notice, so its span is approximate.'
+                    : 'Day counts are as printed on the calendar.';
+            }
+
+            // ---------- Academic calendar table + search ----------
+            const calBody = document.getElementById('calBody');
+            const calEmpty = document.getElementById('calEmpty');
+            const calSearch = document.getElementById('calSearch');
+            const holidayOnly = document.getElementById('holidayOnly');
+
+            function renderCalendarTable() {
+                const q = calSearch.value.trim().toLowerCase();
+                const onlyHolidays = holidayOnly.checked;
+                calBody.innerHTML = '';
+                let shown = 0;
+
+                calendar.forEach(c => {
+                    if (onlyHolidays && !c.isHoliday) return;
+                    const haystack = `${c.desc} ${c.i} ${c.other}`.toLowerCase();
+                    if (q && !haystack.includes(q)) return;
+
+                    shown++;
+                    const tr = document.createElement('tr');
+
+                    const tdSno = document.createElement('td');
+                    tdSno.className = 'sno';
+                    tdSno.textContent = c.sno;
+
+                    const tdDesc = document.createElement('td');
+                    tdDesc.className = 'desc';
+                    tdDesc.textContent = c.desc.replace(/\s*\(Holiday\)/, '');
+                    if (c.isHoliday) {
+                        const badge = document.createElement('span');
+                        badge.className = 'badge-holiday';
+                        badge.textContent = 'Holiday';
+                        tdDesc.appendChild(badge);
+                    }
+
+                    const tdI = document.createElement('td');
+                    tdI.textContent = c.i;
+
+                    const tdOther = document.createElement('td');
+                    tdOther.textContent = c.other;
+
+                    tr.appendChild(tdSno);
+                    tr.appendChild(tdDesc);
+                    tr.appendChild(tdI);
+                    tr.appendChild(tdOther);
+                    calBody.appendChild(tr);
+                });
+
+                calEmpty.hidden = shown !== 0;
+            }
+
+            calSearch.addEventListener('input', renderCalendarTable);
+            holidayOnly.addEventListener('change', renderCalendarTable);
+
+            // ---------- Init ----------
+            loadState();
+            update();
+            renderHolidayCountdown();
+            renderCalendarTable();
+        })();
+    </script>
+</body>
+
+</html>
