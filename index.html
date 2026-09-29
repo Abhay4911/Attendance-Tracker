@@ -76,7 +76,6 @@
         }
 
         #bg {
-         
             width: 100%;
             display: flex;
             flex-direction: column;
@@ -612,6 +611,23 @@
                 <p class="hb-note" id="holidayNote"></p>
             </div>
 
+            <div class="target-box" id="targetBox">
+                <div class="tb-head">
+                    <span>Can I hit my target?</span>
+                    <div class="tb-year">
+                        <label><input type="radio" name="yearSel" id="yearI" value="i" checked> I Year</label>
+                        <label><input type="radio" name="yearSel" id="yearOther" value="other"> II–IV Year</label>
+                    </div>
+                </div>
+                <p class="tb-days">~<b id="tbDays">0</b> class day(s) estimated from today till semester exams
+                    start (Sat/Sun off + calendar holidays already excluded)</p>
+                <div class="field">
+                    <label for="plannedOff">Days I'll skip</label>
+                    <input type="number" id="plannedOff" min="0" inputmode="numeric" value="0">
+                </div>
+                <p class="tb-verdict" id="tbVerdict"></p>
+            </div>
+
             <button class="reset-btn" id="reset" type="button">Reset numbers</button>
         </main>
 
@@ -649,7 +665,7 @@
         </section>
         <section>
             <div class="credit"><h3>Created by-Abhinendra yadav(BCA) & Abhay Mishra(BCA)</h3></div>
-       <p style="text-align: center;">maade with &#10084; </p>
+       <p style="text-align: center;">maade with &#10084;</p>
         </section>
     </div>
 
@@ -788,6 +804,7 @@
 
             [presentEl, absentEl, totalEl, targetEl].forEach((el) => {
                 el.addEventListener('input', update);
+                el.addEventListener('input', () => { if (typeof renderTargetCheck === 'function') renderTargetCheck(); });
             });
 
             resetBtn.addEventListener('click', () => {
@@ -795,6 +812,7 @@
                 absentEl.value = 0;
                 totalEl.value = 0;
                 update();
+                if (typeof renderTargetCheck === 'function') renderTargetCheck();
                 presentEl.focus();
             });
 
@@ -832,6 +850,94 @@
                 { sno: 22, desc: 'Commencement of Classes Even Semester', i: '11 Jan 2027', other: '11 Jan 2027', isHoliday: false },
                 { sno: 23, desc: 'Result Declaration (Tentative)', i: '23 Jan 2027', other: 'by the University', isHoliday: false }
             ];
+
+            // ---------- Estimated last regular class day per year (start of theory exams) ----------
+            const SEM_END = { i: '2026-12-21', other: '2026-11-25' };
+
+            function isWeekendDay(dt) {
+                const day = dt.getDay(); // 0 = Sunday, 6 = Saturday
+                return day === 0 || day === 6;
+            }
+
+            function isCalendarHoliday(dt) {
+                return calendar.some(c => c.isHoliday && dt >= d(c.holidayRange.start) && dt <= d(c.holidayRange.end));
+            }
+
+            // Counts estimated upcoming class days from today (inclusive) till the given
+            // end date (exclusive), skipping Saturdays, Sundays, and calendar holidays.
+            function countRemainingClassDays(endStr) {
+                const end = d(endStr);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                if (today >= end) return 0;
+                let count = 0;
+                const cur = new Date(today);
+                while (cur < end) {
+                    if (!isWeekendDay(cur) && !isCalendarHoliday(cur)) count++;
+                    cur.setDate(cur.getDate() + 1);
+                }
+                return count;
+            }
+
+            // ---------- "Can I hit my target?" box ----------
+            const yearI = document.getElementById('yearI');
+            const yearOther = document.getElementById('yearOther');
+            const plannedOffEl = document.getElementById('plannedOff');
+            const tbDaysEl = document.getElementById('tbDays');
+            const tbVerdictEl = document.getElementById('tbVerdict');
+
+            function renderTargetCheck() {
+                const P = Math.max(0, Math.round(Number(presentEl.value)) || 0);
+                const A = Math.max(0, Math.round(Number(absentEl.value)) || 0);
+                const Tt = Math.max(0, Math.round(Number(totalEl.value)) || 0);
+                const target = Math.min(100, Math.max(0, Number(targetEl.value) || 0));
+                const yearKey = yearI.checked ? 'i' : 'other';
+                const remaining = countRemainingClassDays(SEM_END[yearKey]);
+
+                tbDaysEl.textContent = remaining;
+
+                let plannedOff = Math.max(0, Math.round(Number(plannedOffEl.value)) || 0);
+                if (plannedOff > remaining) plannedOff = remaining;
+                if (Number(plannedOffEl.value) > remaining) plannedOffEl.value = remaining;
+
+                if (Tt <= 0) {
+                    tbVerdictEl.className = 'tb-verdict neutral';
+                    tbVerdictEl.textContent = 'Enter your attendance numbers above to check.';
+                    return;
+                }
+
+                if (remaining <= 0) {
+                    const curPct = P / Tt * 100;
+                    tbVerdictEl.className = 'tb-verdict ' + (curPct >= target ? 'ok' : 'no');
+                    tbVerdictEl.textContent = curPct >= target
+                        ? `\u{1F389} Congrats! Regular classes are already over for this semester (per calendar) and you're at ${formatPct(curPct)}, at or above your ${target}% target.`
+                        : `\u{1F614} Fine ki vyawastha kar ab kuch n ho skta, regular classes are already over for this semester (per calendar) and you're at ${formatPct(curPct)}, below your ${target}% target.`;
+                    return;
+                }
+
+                const attendedFuture = remaining - plannedOff;
+                const futurePresent = P + attendedFuture;
+                const futureAbsent = A + plannedOff;
+                const futureTotal = Tt + remaining;
+                const finalPct = futureTotal > 0 ? (futurePresent / futureTotal) * 100 : 0;
+
+                if (finalPct >= target) {
+                    tbVerdictEl.className = 'tb-verdict ok';
+                    tbVerdictEl.textContent = plannedOff > 0
+                        ? `\u{1F389} Congrats! Even skipping ${plannedOff} of the ~${remaining} remaining class day${remaining === 1 ? '' : 's'}, you'll end around ${formatPct(finalPct)} \u2014 your ${target}% target is safe.`
+                        : `\u{1F389} Congrats! Attend all ~${remaining} remaining class day${remaining === 1 ? '' : 's'} and you'll reach ${formatPct(finalPct)} \u2014 your ${target}% target is achievable.`;
+                } else {
+                    tbVerdictEl.className = 'tb-verdict no';
+                    tbVerdictEl.textContent = plannedOff > 0
+                        ? `\u{1F614} Sorry, skipping ${plannedOff} of the ~${remaining} remaining class day${remaining === 1 ? '' : 's'} leaves you around ${formatPct(finalPct)} \u2014 below your ${target}% target.`
+                        : `\u{1F614} Sorry, even attending all ~${remaining} remaining class day${remaining === 1 ? '' : 's'}, the best you can reach is ${formatPct(finalPct)} \u2014 below your ${target}% target.`;
+                }
+            }
+
+            [yearI, yearOther, plannedOffEl].forEach((el) => {
+                el.addEventListener('input', renderTargetCheck);
+                el.addEventListener('change', renderTargetCheck);
+            });
 
             // ---------- Holidays from this month onward ----------
             const holidayListEl = document.getElementById('holidayList');
@@ -942,6 +1048,7 @@
             update();
             renderHolidayCountdown();
             renderCalendarTable();
+            renderTargetCheck();
         })();
     </script>
 </body>
